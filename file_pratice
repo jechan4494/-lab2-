@@ -1,0 +1,52 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <dirent.h>   // 디렉토리 탐색
+#include <sys/stat.h> // stat
+#include <unistd.h>
+
+void list_dir(const char *path, int indent) {
+    DIR *dir = opendir(path);
+    if (!dir) {
+        printf("%*s디렉토리를 열 수 없습니다: %s\n", indent * 4, "", path);
+        return;
+    }
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != NULL) {
+        // 현재(.), 상위(..) 디렉토리는 건너뜀
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0)
+            continue;
+
+        char full_path[1024];
+        snprintf(full_path, sizeof(full_path), "%s/%s", path, entry->d_name);
+
+        struct stat st;
+        if (stat(full_path, &st) == -1) {
+            perror("stat");
+            continue;
+        }
+
+        if (S_ISDIR(st.st_mode)) {
+            printf("%*s[%s]/\n", indent * 4, "", entry->d_name);
+            // 재귀 호출
+            list_dir(full_path, indent + 1);
+        } else {
+            printf("%*s%s\n", indent * 4, "", entry->d_name);
+        }
+    }
+
+    closedir(dir);
+}
+
+int main(int argc, char *argv[]) {
+    const char *start_path = ".";
+    if (argc > 1) {
+        start_path = argv[1];
+    }
+
+    printf("%s:\n", start_path);
+    list_dir(start_path, 0);
+
+    return 0;
+}
